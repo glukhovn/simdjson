@@ -138,6 +138,9 @@ jsonstats: tools/jsonstats.cpp $(HEADERS) $(LIBFILES)
 ujdecode.o: $(UJSON4C_INCLUDE)
 	$(CC) $(CFLAGS) -c dependencies/ujson4c/src/ujdecode.c
 
+
+PGFILES = benchmark/pg/json.c benchmark/pg/jsonb.c benchmark/pg/palloc.c benchmark/pg/stringinfo.c benchmark/pg/qsort_arg.c
+
 parseandstatcompetition: benchmark/parseandstatcompetition.cpp $(HEADERS) $(LIBFILES)
 	$(CXX) $(CXXFLAGS)  -o parseandstatcompetition $(LIBFILES) benchmark/parseandstatcompetition.cpp -I. $(LIBFLAGS) $(COREDEPSINCLUDE)
 
@@ -145,7 +148,7 @@ distinctuseridcompetition: benchmark/distinctuseridcompetition.cpp $(HEADERS) $(
 	$(CXX) $(CXXFLAGS)  -o distinctuseridcompetition $(LIBFILES) benchmark/distinctuseridcompetition.cpp  -I. $(LIBFLAGS) $(COREDEPSINCLUDE)
 
 parsingcompetition: benchmark/parsingcompetition.cpp $(HEADERS) $(LIBFILES)
-	$(CXX) $(CXXFLAGS)  -o parsingcompetition $(LIBFILES) benchmark/parsingcompetition.cpp -I. $(LIBFLAGS) $(COREDEPSINCLUDE)
+	$(CXX) $(CXXFLAGS)  -o parsingcompetition $(LIBFILES) benchmark/parsingcompetition.cpp $(PGFILES) -I. $(LIBFLAGS) $(COREDEPSINCLUDE)
 
 allparsingcompetition: benchmark/parsingcompetition.cpp $(HEADERS) $(LIBFILES) $(EXTRAOBJECTS) $(LIBS)
 	$(CXX) $(CXXFLAGS)  -o allparsingcompetition $(LIBFILES) benchmark/parsingcompetition.cpp  $(EXTRAOBJECTS) -I. $(LIBFLAGS) $(COREDEPSINCLUDE) $(EXTRADEPSINCLUDE)  -DALLPARSER

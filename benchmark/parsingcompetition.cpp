@@ -41,6 +41,9 @@ extern "C" {
 
 #endif 
 
+#include "pg/json.h"
+#include "pg/jsonb.h"
+
 using namespace rapidjson;
 using namespace std;
 
@@ -154,6 +157,31 @@ int main(int argc, char *argv[]) {
                           sajson::mutable_string_view(p.size(), buffer))
                 .is_valid(),
             true, memcpy(buffer, p.data(), p.size()), repeat, volume, !justdata);
+
+#ifndef NO_PG_PARSER
+  Jsonb *jb = NULL;
+  JsonbValue *jbv = NULL;
+
+  memcpy(buffer, p.data(), p.size());
+  buffer[p.size()] = '\0';
+
+  BEST_TIME(
+      "PG json           ",
+      pg_json_validate(buffer, false), true, pool_free(), repeat, volume, !justdata);
+
+  BEST_TIME(
+      "PG json escaped   ",
+      pg_json_validate(buffer, true), true, pool_free(), repeat, volume, !justdata);
+
+  BEST_TIME(
+      "PG jsonb value    ",
+      !(jbv = jsonb_value_from_cstring((char *) p.data(), p.size())), false, (pfree(jbv), pool_free()), repeat, volume, !justdata);
+
+  BEST_TIME(
+      "PG jsonb          ",
+      !(jb = jsonb_from_cstring((char *) p.data(), p.size())), false, (pfree(jb), pool_free()), repeat, volume, !justdata);
+#endif
+
 #ifdef __linux__
   if(!justdata) {
       vector<int> evts;
@@ -200,6 +228,31 @@ int main(int argc, char *argv[]) {
         std::transform (stats.begin(), stats.end(), results.begin(), stats.begin(), std::plus<unsigned long long>());
       }
       printf("sajson   : cycles %10.0f instructions %10.0f branchmisses %10.0f cacheref %10.0f cachemisses %10.0f  bytespercachemiss %10.0f inspercycle %10.1f insperbyte %10.1f\n",
+      stats[0] * 1.0 / repeat, stats[1] * 1.0 / repeat, stats[2] * 1.0 / repeat, stats[3] * 1.0 / repeat,  stats[4] * 1.0 / repeat,  volume * repeat * 1.0 / stats[2], stats[1] *1.0 / stats[0], stats[1] * 1.0 / (volume * repeat));
+
+      std::fill(stats.begin(), stats.end(), 0);// unnecessary
+      for(int i = 0; i < repeat; i++) {
+        memcpy(buffer, p.data(), p.size());
+        unified.start();
+        if (!pg_json_validate((char *) buffer, false))
+          printf("bug\n");
+        unified.end(results);
+        std::transform (stats.begin(), stats.end(), results.begin(), stats.begin(), std::plus<unsigned long long>());
+        pool_free();
+      }
+      printf("PG json  : cycles %10.0f instructions %10.0f branchmisses %10.0f cacheref %10.0f cachemisses %10.0f  bytespercachemiss %10.0f inspercycle %10.1f insperbyte %10.1f\n",
+      stats[0] * 1.0 / repeat, stats[1] * 1.0 / repeat, stats[2] * 1.0 / repeat, stats[3] * 1.0 / repeat,  stats[4] * 1.0 / repeat,  volume * repeat * 1.0 / stats[2], stats[1] *1.0 / stats[0], stats[1] * 1.0 / (volume * repeat));
+
+      std::fill(stats.begin(), stats.end(), 0);// unnecessary
+      for(int i = 0; i < repeat; i++) {
+        unified.start();
+        if (!jsonb_from_cstring((char *) p.data(), p.size()))
+          printf("bug\n");
+        unified.end(results);
+        std::transform (stats.begin(), stats.end(), results.begin(), stats.begin(), std::plus<unsigned long long>());
+        pool_free();
+      }
+      printf("PG jsonb : cycles %10.0f instructions %10.0f branchmisses %10.0f cacheref %10.0f cachemisses %10.0f  bytespercachemiss %10.0f inspercycle %10.1f insperbyte %10.1f\n",
       stats[0] * 1.0 / repeat, stats[1] * 1.0 / repeat, stats[2] * 1.0 / repeat, stats[3] * 1.0 / repeat,  stats[4] * 1.0 / repeat,  volume * repeat * 1.0 / stats[2], stats[1] *1.0 / stats[0], stats[1] * 1.0 / (volume * repeat));
   }
 #endif//  __linux__
@@ -256,6 +309,7 @@ int main(int argc, char *argv[]) {
                , repeat, volume, !justdata);
   delete jsoncppreader;
 #endif
+
   if(!justdata) BEST_TIME("memcpy            ",
             (memcpy(buffer, p.data(), p.size()) == buffer), true, , repeat,
             volume, !justdata);
